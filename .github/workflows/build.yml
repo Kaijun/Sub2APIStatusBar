@@ -15,6 +15,8 @@ jobs:
   macos:
     name: Test and Package
     runs-on: macos-latest
+    outputs:
+      signing_ready: ${{ steps.signing.outputs.signing_ready }}
 
     steps:
       - name: Checkout
@@ -118,10 +120,10 @@ jobs:
               TEAM_ID="$TEAM_ID" \
               APP_SPECIFIC_PASSWORD="$APP_SPECIFIC_PASSWORD" \
               ./scripts/notarize-release.sh
-          elif [[ "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
-            echo "Tagged releases require Apple signing and notarization secrets." >&2
-            exit 1
           else
+            if [[ "${GITHUB_REF_TYPE:-}" == "tag" ]]; then
+              echo "Apple signing secrets are not configured; creating an ad-hoc signed release."
+            fi
             VERSION="$VERSION" ./scripts/package-release.sh
           fi
           VERSION="$VERSION" ./scripts/verify-release.sh
@@ -135,3 +137,44 @@ jobs:
             dist/*.dmg
             dist/*.sha256
           if-no-files-found: error
+
+  release:
+    name: Publish GitHub Release
+    if: github.ref_type == 'tag' && startsWith(github.ref_name, 'v')
+    needs: macos
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download Release Assets
+        uses: actions/download-artifact@v4
+        with:
+          name: Sub2APIStatusBar-macOS
+          path: dist
+
+      - name: Create or Update GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          SIGNING_READY: ${{ needs.macos.outputs.signing_ready }}
+          TAG_NAME: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          assets=(dist/*.zip dist/*.dmg dist/*.sha256)
+
+          if [[ "$SIGNING_READY" == "true" ]]; then
+            trust_note="This build is signed with an Apple Developer ID and notarized by Apple."
+          else
+            trust_note=$'> [!IMPORTANT]\n> This build uses ad-hoc signing and is not notarized by Apple. If macOS blocks the first launch, open System Settings > Privacy & Security and choose Open Anyway.'
+          fi
+
+          if gh release view "$TAG_NAME" >/dev/null 2>&1; then
+            gh release upload "$TAG_NAME" "${assets[@]}" --clobber
+          else
+            gh release create "$TAG_NAME" "${assets[@]}" \
+              --verify-tag \
+              --title "$TAG_NAME" \
+              --generate-notes \
+              --notes "$trust_note"
+          fi

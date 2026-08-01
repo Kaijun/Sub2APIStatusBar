@@ -42,6 +42,8 @@ Sub2API Status Bar 是一款使用原生 Swift 开发的轻量级 [Sub2API](http
 
 本地构建或 ad-hoc 签名的版本可能未经过 Apple 公证。首次启动被阻止时，可以前往 **系统设置 > 隐私与安全性 > 仍要打开**。
 
+推送 `v*` 标签后，GitHub Actions 会自动构建并发布 Release。仓库配置了 Apple 密钥时会签名并公证；未配置时会发布 ad-hoc 签名版本，并在 Release 页面提示上述首次打开方法。
+
 ### 从源码运行
 
 需要 macOS 13 或更高版本，以及 Swift 6.0 或更高版本。
@@ -119,6 +121,13 @@ swift build
 swift test
 ./scripts/capture-product-preview.swift
 VERSION=v0.1.12 ./scripts/package-release.sh
+```
+
+发布 GitHub Release：
+
+```bash
+git tag v0.1.12
+git push origin v0.1.12
 ```
 
 贡献说明请查看 [CONTRIBUTING.md](CONTRIBUTING.md)，安全问题请通过 [SECURITY.md](SECURITY.md) 中的方式私下报告。

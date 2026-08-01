@@ -42,6 +42,8 @@ Published `.dmg` and `.zip` builds are available from [GitHub Releases](https://
 
 Because locally built or ad-hoc signed releases may not be notarized, macOS can require **System Settings > Privacy & Security > Open Anyway** on first launch.
 
+Releases are built automatically when a `v*` tag is pushed. Builds use Apple signing and notarization when the repository secrets are configured; otherwise, the workflow publishes an ad-hoc signed build with the first-launch notice above.
+
 ### Build From Source
 
 Requirements: macOS 13 or later and Swift 6.0 or later.
@@ -119,6 +121,13 @@ swift build
 swift test
 ./scripts/capture-product-preview.swift
 VERSION=v0.1.12 ./scripts/package-release.sh
+```
+
+To publish a GitHub Release:
+
+```bash
+git tag v0.1.12
+git push origin v0.1.12
 ```
 
 See [CONTRIBUTING.md](CONTRIBUTING.md) for contribution guidance and [SECURITY.md](SECURITY.md) for private vulnerability reporting.
