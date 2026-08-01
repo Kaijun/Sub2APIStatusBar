@@ -9,44 +9,35 @@ struct SectionBlock<Content: View>: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             Text(title)
-                .font(.system(size: 14, weight: .semibold))
-                .foregroundStyle(.primary)
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
             content
-                .padding(12)
-                .background(PanelColors.surface, in: RoundedRectangle(cornerRadius: 8))
-                .overlay(
-                    RoundedRectangle(cornerRadius: 8)
-                        .stroke(PanelColors.border, lineWidth: 1)
-                )
         }
     }
 }
 
 enum PanelColors {
+    static let background = Color(nsColor: .windowBackgroundColor)
+    static let chrome = Color(nsColor: .controlBackgroundColor)
     static let backgroundTop = Color(nsColor: .windowBackgroundColor)
-    static let backgroundMid = Color(
-        light: Color(red: 0.96, green: 0.98, blue: 1.0),
-        dark: Color(red: 0.14, green: 0.15, blue: 0.17)
-    )
-    static let backgroundBottom = Color(
-        light: Color(red: 0.91, green: 0.94, blue: 0.98),
-        dark: Color(red: 0.09, green: 0.10, blue: 0.12)
-    )
+    static let backgroundMid = Color(nsColor: .windowBackgroundColor)
+    static let backgroundBottom = Color(nsColor: .windowBackgroundColor)
     static let surface = Color(
-        light: Color(nsColor: .controlBackgroundColor).opacity(0.86),
-        dark: Color(red: 0.18, green: 0.19, blue: 0.21).opacity(0.94)
+        light: Color(nsColor: .controlBackgroundColor),
+        dark: Color(nsColor: .controlBackgroundColor)
     )
     static let elevatedSurface = Color(
-        light: Color(nsColor: .windowBackgroundColor).opacity(0.94),
-        dark: Color(red: 0.13, green: 0.14, blue: 0.16).opacity(0.98)
+        light: Color(nsColor: .controlBackgroundColor),
+        dark: Color(nsColor: .controlBackgroundColor)
     )
     static let heroSurfaceStart = Color(
-        light: Color(nsColor: .controlBackgroundColor).opacity(0.96),
-        dark: Color(red: 0.20, green: 0.21, blue: 0.23)
+        light: Color(nsColor: .controlBackgroundColor),
+        dark: Color(nsColor: .controlBackgroundColor)
     )
     static let heroSurfaceEnd = Color(
-        light: Color(red: 0.88, green: 0.93, blue: 1.0).opacity(0.64),
-        dark: Color(red: 0.12, green: 0.15, blue: 0.18)
+        light: Color(nsColor: .controlBackgroundColor),
+        dark: Color(nsColor: .controlBackgroundColor)
     )
     static let softFill = Color(
         light: Color.primary.opacity(0.035),
@@ -64,15 +55,7 @@ enum PanelColors {
 
 struct PanelBackground: View {
     var body: some View {
-        LinearGradient(
-            colors: [
-                PanelColors.backgroundTop,
-                PanelColors.backgroundMid,
-                PanelColors.backgroundBottom,
-            ],
-            startPoint: .top,
-            endPoint: .bottom
-        )
+        PanelColors.background
     }
 }
 

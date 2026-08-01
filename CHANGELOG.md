@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- Replaced the text menu bar status with a compact two- or three-row quota meter.
+- Added Remaining and Used fill modes with mirrored 50% and 75% usage markers.
+- Redesigned the popover around daily, weekly, and monthly quota, reset time, requests, tokens, cost, and expiry.
+- Added provider identity, refresh status, and account switching to the popover header.
+- Consolidated secondary commands under Actions and simplified Settings to token-based configuration.
+- Added CodexBar attribution, current product screenshots, and rewritten English and Simplified Chinese READMEs.
+
 ## v0.1.11
 
 - Added a Simplified Chinese README and language switch links between English and Chinese docs.

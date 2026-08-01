@@ -5,21 +5,20 @@ struct SubscriptionQuotaCard: View {
     let item: SubscriptionSummaryItem
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
+        VStack(alignment: .leading, spacing: 9) {
             HStack(spacing: 8) {
                 Circle()
                     .fill(item.status == "active" ? Color.green : Color.secondary)
-                    .frame(width: 7, height: 7)
+                    .frame(width: 6, height: 6)
                 Text(item.groupName)
-                    .font(.callout.weight(.semibold))
+                    .font(.system(size: 12, weight: .semibold))
                 Spacer()
-                StatusPill(
-                    text: item.status == "active" ? "Active" : item.status,
-                    color: item.status == "active" ? .green : .secondary
-                )
+                if let days = item.daysRemaining {
+                    Text("\(days)d left")
+                        .font(.system(size: 10))
+                        .foregroundStyle(days <= 3 ? .orange : .secondary)
+                }
             }
-
-            quotaSummary
 
             ForEach(quotaWindows, id: \.title) { window in
                 QuotaProgressRow(window: window)
@@ -53,39 +52,6 @@ struct SubscriptionQuotaCard: View {
         ]
     }
 
-    private var quotaSummary: some View {
-        HStack(spacing: 8) {
-            Label(bestWindow.percentText, systemImage: "gauge.with.dots.needle.67percent")
-                .foregroundStyle(tint(for: bestWindow.severity))
-            Text(bestWindow.remainingText)
-                .foregroundStyle(.secondary)
-                .lineLimit(1)
-                .minimumScaleFactor(0.8)
-
-            Spacer()
-
-            if let days = item.daysRemaining {
-                Label("\(days)d left", systemImage: "calendar.badge.clock")
-                    .foregroundStyle(days <= 3 ? .orange : .secondary)
-            }
-        }
-        .font(.caption.weight(.medium))
-    }
-
-    private var bestWindow: QuotaWindowDisplay {
-        quotaWindows.max { $0.normalizedProgress < $1.normalizedProgress } ?? quotaWindows[0]
-    }
-
-    private func tint(for severity: MonitorSeverity) -> Color {
-        switch severity {
-        case .healthy:
-            .green
-        case .warning:
-            .orange
-        case .error:
-            .red
-        }
-    }
 }
 
 struct QuotaProgressRow: View {
@@ -103,32 +69,41 @@ struct QuotaProgressRow: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 6) {
+        VStack(alignment: .leading, spacing: 5) {
             HStack(alignment: .firstTextBaseline) {
                 Text(window.title)
-                    .font(.caption.weight(.semibold))
+                    .font(.system(size: 10, weight: .medium))
+                    .foregroundStyle(.secondary)
                 Spacer()
                 Text(window.percentText)
-                    .font(.caption.weight(.bold).monospacedDigit())
+                    .font(.system(size: 10, weight: .semibold).monospacedDigit())
                     .foregroundStyle(tint)
+                    .frame(width: 34, alignment: .trailing)
+            }
+
+            GeometryReader { proxy in
+                ZStack(alignment: .leading) {
+                    Capsule()
+                        .fill(Color.primary.opacity(0.10))
+                    Capsule()
+                        .fill(tint)
+                        .frame(width: max(3, proxy.size.width * window.normalizedProgress))
+                }
+            }
+            .frame(height: 4)
+
+            HStack {
                 Text(window.amountText)
-                    .font(.caption.monospacedDigit())
+                    .font(.system(size: 9).monospacedDigit())
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
-            }
-
-            ProgressView(value: window.normalizedProgress)
-                .tint(tint)
-
-            HStack {
-                Text(window.remainingText)
                 Spacer()
                 if let resetText = window.resetText {
                     Text(resetText)
                 }
             }
-            .font(.caption)
+            .font(.system(size: 9))
             .foregroundStyle(.secondary)
             .lineLimit(1)
             .minimumScaleFactor(0.75)

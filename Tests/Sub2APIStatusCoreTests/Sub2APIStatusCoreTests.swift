@@ -74,12 +74,18 @@ private func pngSize(_ data: Data) -> (width: Int, height: Int)? {
     #expect(workflow.contains("dist/*.dmg"))
 }
 
-@Test func appConfigPersistsMenuBarTextPreference() throws {
+@Test func appConfigPersistsMenuBarPresentationPreferences() throws {
     let configURL = URL(fileURLWithPath: NSTemporaryDirectory())
         .appendingPathComponent(UUID().uuidString)
         .appendingPathComponent("config.json")
     let store = ConfigStore(configURL: configURL)
-    let config = AppConfig(baseURL: "http://127.0.0.1:8080", showsMenuBarText: true, menuBarMetric: .quota)
+    let config = AppConfig(
+        baseURL: "http://127.0.0.1:8080",
+        showsMenuBarText: true,
+        menuBarMetric: .quota,
+        menuBarUsageDisplay: .used,
+        menuBarQuotaRows: .three
+    )
 
     try store.save(config)
     let loaded = store.load()
@@ -87,6 +93,8 @@ private func pngSize(_ data: Data) -> (width: Int, height: Int)? {
     #expect(loaded.baseURL == "http://127.0.0.1:8080")
     #expect(loaded.showsMenuBarText == true)
     #expect(loaded.menuBarMetric == .quota)
+    #expect(loaded.menuBarUsageDisplay == .used)
+    #expect(loaded.menuBarQuotaRows == .three)
 }
 
 @Test func appConfigPersistsInsightThresholds() throws {
@@ -1307,7 +1315,8 @@ private func pngSize(_ data: Data) -> (width: Int, height: Int)? {
     #expect(report.contains("Insight Alerts: enabled"))
     #expect(report.contains("Insight Alert Level: error"))
     #expect(report.contains("Insight Alert Cooldown: 90m"))
-    #expect(report.contains("Menu Bar Metric: automatic"))
+    #expect(report.contains("Menu Bar Fill: remaining"))
+    #expect(report.contains("Menu Bar Rows: two"))
     #expect(report.contains("Monthly Budget: $0.00"))
     #expect(report.contains("Spend Surge Threshold: 150%"))
     #expect(report.contains("Notification Permission: denied"))

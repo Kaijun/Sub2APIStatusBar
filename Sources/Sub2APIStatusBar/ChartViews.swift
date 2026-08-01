@@ -70,7 +70,7 @@ struct UsageTrendSection: View {
                 .controlSize(.small)
 
                 UsageTrendView(metric: UsageTrendMetric(mode: selectedMode, points: points))
-                    .frame(height: 154)
+                    .frame(height: 112)
             }
         case let .unavailable(message):
             HStack(alignment: .top, spacing: 8) {

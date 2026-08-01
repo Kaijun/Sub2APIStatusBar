@@ -100,7 +100,7 @@ final class InsightNotifier {
         return await addNotification(request, center: center)
     }
 
-    private func requestNotificationAuthorization(center: UNUserNotificationCenter) async -> Bool {
+    private nonisolated func requestNotificationAuthorization(center: UNUserNotificationCenter) async -> Bool {
         await withCheckedContinuation { continuation in
             center.requestAuthorization(options: [.alert, .sound]) { granted, _ in
                 continuation.resume(returning: granted)
@@ -108,7 +108,7 @@ final class InsightNotifier {
         }
     }
 
-    private func addNotification(_ request: UNNotificationRequest, center: UNUserNotificationCenter) async -> Bool {
+    private nonisolated func addNotification(_ request: UNNotificationRequest, center: UNUserNotificationCenter) async -> Bool {
         await withCheckedContinuation { continuation in
             center.add(request) { error in
                 continuation.resume(returning: error == nil)
@@ -116,7 +116,9 @@ final class InsightNotifier {
         }
     }
 
-    private func currentAuthorization(center: UNUserNotificationCenter = .current()) async -> InsightNotificationAuthorization {
+    private nonisolated func currentAuthorization(
+        center: UNUserNotificationCenter = .current()
+    ) async -> InsightNotificationAuthorization {
         await withCheckedContinuation { continuation in
             center.getNotificationSettings { settings in
                 continuation.resume(returning: Self.authorization(from: settings.authorizationStatus))

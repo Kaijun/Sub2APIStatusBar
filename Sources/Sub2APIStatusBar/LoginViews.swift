@@ -14,7 +14,8 @@ struct LoginPanel: View {
     }
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 18) {
+        ScrollView {
+            VStack(alignment: .leading, spacing: 18) {
             HStack(alignment: .center, spacing: 12) {
                 Image(systemName: "antenna.radiowaves.left.and.right.circle.fill")
                     .font(.system(size: 38, weight: .semibold))
@@ -107,8 +108,6 @@ struct LoginPanel: View {
                 .disabled(model.settingsDraft.authToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
 
-            Spacer()
-
             HStack {
                 Button {
                     model.openURL(model.settingsDraft.baseURL)
@@ -127,7 +126,8 @@ struct LoginPanel: View {
             }
             .buttonStyle(.borderless)
         }
-        .padding(20)
+            .padding(20)
+        }
         .onChange(of: model.focusesManualToken) { shouldFocus in
             if shouldFocus {
                 focusedField = .token

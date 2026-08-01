@@ -81,6 +81,38 @@ public enum MenuBarMetric: String, Codable, CaseIterable, Identifiable, Sendable
     }
 }
 
+public enum MenuBarUsageDisplay: String, Codable, CaseIterable, Identifiable, Sendable {
+    case remaining
+    case used
+
+    public var id: String { rawValue }
+
+    public var displayName: String {
+        switch self {
+        case .remaining:
+            "Remaining"
+        case .used:
+            "Used"
+        }
+    }
+}
+
+public enum MenuBarQuotaRows: String, Codable, CaseIterable, Identifiable, Sendable {
+    case two
+    case three
+
+    public var id: String { rawValue }
+
+    public var displayName: String {
+        switch self {
+        case .two:
+            "Daily + Weekly"
+        case .three:
+            "Daily + Weekly + Monthly"
+        }
+    }
+}
+
 public struct InsightThresholds: Codable, Equatable, Sendable {
     public var quotaWarningProgress: Double
     public var quotaCriticalProgress: Double
@@ -269,6 +301,8 @@ public struct AppConfig: Codable, Equatable, Sendable {
     public var monitorMode: MonitorMode
     public var showsMenuBarText: Bool
     public var menuBarMetric: MenuBarMetric
+    public var menuBarUsageDisplay: MenuBarUsageDisplay
+    public var menuBarQuotaRows: MenuBarQuotaRows
     public var insightThresholds: InsightThresholds
     public var insightAlertSettings: InsightAlertSettings
     public var accounts: [StoredAccount]
@@ -283,6 +317,8 @@ public struct AppConfig: Codable, Equatable, Sendable {
         monitorMode: MonitorMode = .user,
         showsMenuBarText: Bool = false,
         menuBarMetric: MenuBarMetric = .automatic,
+        menuBarUsageDisplay: MenuBarUsageDisplay = .remaining,
+        menuBarQuotaRows: MenuBarQuotaRows = .two,
         insightThresholds: InsightThresholds = .defaults,
         insightAlertSettings: InsightAlertSettings = .defaults,
         accounts: [StoredAccount] = [],
@@ -296,6 +332,8 @@ public struct AppConfig: Codable, Equatable, Sendable {
         self.monitorMode = monitorMode
         self.showsMenuBarText = showsMenuBarText
         self.menuBarMetric = menuBarMetric
+        self.menuBarUsageDisplay = menuBarUsageDisplay
+        self.menuBarQuotaRows = menuBarQuotaRows
         self.insightThresholds = insightThresholds
         self.insightAlertSettings = insightAlertSettings
         self.accounts = accounts
@@ -312,6 +350,8 @@ public struct AppConfig: Codable, Equatable, Sendable {
         case monitorMode
         case showsMenuBarText
         case menuBarMetric
+        case menuBarUsageDisplay
+        case menuBarQuotaRows
         case insightThresholds
         case insightAlertSettings
         case accounts
@@ -328,6 +368,8 @@ public struct AppConfig: Codable, Equatable, Sendable {
         monitorMode = try container.decodeIfPresent(MonitorMode.self, forKey: .monitorMode) ?? .user
         showsMenuBarText = try container.decodeIfPresent(Bool.self, forKey: .showsMenuBarText) ?? false
         menuBarMetric = try container.decodeIfPresent(MenuBarMetric.self, forKey: .menuBarMetric) ?? .automatic
+        menuBarUsageDisplay = try container.decodeIfPresent(MenuBarUsageDisplay.self, forKey: .menuBarUsageDisplay) ?? .remaining
+        menuBarQuotaRows = try container.decodeIfPresent(MenuBarQuotaRows.self, forKey: .menuBarQuotaRows) ?? .two
         insightThresholds = try container.decodeIfPresent(InsightThresholds.self, forKey: .insightThresholds) ?? .defaults
         insightAlertSettings = try container.decodeIfPresent(InsightAlertSettings.self, forKey: .insightAlertSettings) ?? .defaults
         accounts = try container.decodeIfPresent([StoredAccount].self, forKey: .accounts) ?? []
@@ -345,6 +387,8 @@ public struct AppConfig: Codable, Equatable, Sendable {
         try container.encode(monitorMode, forKey: .monitorMode)
         try container.encode(showsMenuBarText, forKey: .showsMenuBarText)
         try container.encode(menuBarMetric, forKey: .menuBarMetric)
+        try container.encode(menuBarUsageDisplay, forKey: .menuBarUsageDisplay)
+        try container.encode(menuBarQuotaRows, forKey: .menuBarQuotaRows)
         try container.encode(insightThresholds, forKey: .insightThresholds)
         try container.encode(insightAlertSettings, forKey: .insightAlertSettings)
         try container.encode(accounts, forKey: .accounts)
@@ -361,7 +405,9 @@ public struct AppConfig: Codable, Equatable, Sendable {
             language: AppLanguage.fromEnvironment(env["SUB2API_LANGUAGE"]),
             monitorMode: .user,
             showsMenuBarText: ["1", "true", "yes", "on"].contains((env["SUB2API_SHOW_MENU_BAR_TEXT"] ?? "").lowercased()),
-            menuBarMetric: MenuBarMetric(rawValue: (env["SUB2API_MENU_BAR_METRIC"] ?? "").lowercased()) ?? .automatic
+            menuBarMetric: MenuBarMetric(rawValue: (env["SUB2API_MENU_BAR_METRIC"] ?? "").lowercased()) ?? .automatic,
+            menuBarUsageDisplay: MenuBarUsageDisplay(rawValue: (env["SUB2API_MENU_BAR_USAGE"] ?? "").lowercased()) ?? .remaining,
+            menuBarQuotaRows: MenuBarQuotaRows(rawValue: (env["SUB2API_MENU_BAR_ROWS"] ?? "").lowercased()) ?? .two
         )
     }
 

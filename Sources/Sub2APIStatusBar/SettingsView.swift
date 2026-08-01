@@ -3,7 +3,13 @@ import Sub2APIStatusCore
 
 struct SettingsView: View {
     @ObservedObject var model: MonitorViewModel
+    var onClose: (() -> Void)?
     @Environment(\.dismiss) private var dismiss
+
+    init(model: MonitorViewModel, onClose: (() -> Void)? = nil) {
+        self.model = model
+        self.onClose = onClose
+    }
 
     var body: some View {
         VStack(spacing: 0) {
@@ -16,9 +22,7 @@ struct SettingsView: View {
                     }
                     GeneralSettingsSection(model: model)
                     AlertSettingsSection(model: model)
-                    InsightSettingsSection(model: model)
                     UpdateSettingsSection(model: model)
-                    LoginSettingsSection(model: model, dismiss: dismiss)
                     DiagnosticsSettingsSection(model: model)
                 }
                 .padding(20)
@@ -71,17 +75,25 @@ struct SettingsView: View {
         HStack {
             Spacer()
             Button("Cancel") {
-                dismiss()
+                close()
             }
             Button("Save") {
                 model.saveSettings()
-                dismiss()
+                close()
             }
             .buttonStyle(.borderedProminent)
         }
         .padding(.horizontal, 20)
         .padding(.vertical, 14)
         .background(PanelColors.elevatedSurface.opacity(0.92))
+    }
+
+    private func close() {
+        if let onClose {
+            onClose()
+        } else {
+            dismiss()
+        }
     }
 }
 
@@ -123,19 +135,25 @@ struct GeneralSettingsSection: View {
                         .frame(maxWidth: .infinity)
                 }
 
-                SettingsControlRow(title: "Menu Bar") {
-                    Toggle("Show text", isOn: $model.settingsDraft.showsMenuBarText)
-                }
-
-                SettingsControlRow(title: "Metric") {
-                    Picker("", selection: $model.settingsDraft.menuBarMetric) {
-                        ForEach(MenuBarMetric.allCases) { metric in
-                            Text(metric.displayName).tag(metric)
+                SettingsControlRow(title: "Menu Bar Fill") {
+                    Picker("", selection: $model.settingsDraft.menuBarUsageDisplay) {
+                        ForEach(MenuBarUsageDisplay.allCases) { display in
+                            Text(display.displayName).tag(display)
                         }
                     }
                     .pickerStyle(.segmented)
                     .controlSize(.small)
-                    .disabled(!model.settingsDraft.showsMenuBarText)
+                    .frame(maxWidth: .infinity)
+                }
+
+                SettingsControlRow(title: "Menu Bar Rows") {
+                    Picker("", selection: $model.settingsDraft.menuBarQuotaRows) {
+                        ForEach(MenuBarQuotaRows.allCases) { rows in
+                            Text(rows.displayName).tag(rows)
+                        }
+                    }
+                    .pickerStyle(.segmented)
+                    .controlSize(.small)
                     .frame(maxWidth: .infinity)
                 }
 
@@ -154,8 +172,8 @@ struct GeneralSettingsSection: View {
                         .frame(width: 42, alignment: .trailing)
                 }
 
-                SettingsControlRow(title: "Token") {
-                    SecureField("Bearer Token", text: $model.settingsDraft.authToken)
+                SettingsControlRow(title: "Bearer Token") {
+                    SecureField("Token", text: $model.settingsDraft.authToken)
                         .textFieldStyle(.roundedBorder)
                         .frame(maxWidth: .infinity)
                 }
@@ -175,7 +193,7 @@ struct AlertSettingsSection: View {
         SettingsSection(title: "Alerts") {
             VStack(spacing: 8) {
                 SettingsControlRow(title: "Notify") {
-                    Toggle("Usage insights", isOn: $model.settingsDraft.insightAlertSettings.isEnabled)
+                    Toggle("Quota and usage warnings", isOn: $model.settingsDraft.insightAlertSettings.isEnabled)
                 }
 
                 SettingsControlRow(title: "Level") {
@@ -199,89 +217,6 @@ struct AlertSettingsSection: View {
                 InsightNotificationPermissionRow(model: model)
             }
         }
-    }
-}
-
-struct InsightSettingsSection: View {
-    @ObservedObject var model: MonitorViewModel
-
-    var body: some View {
-        SettingsSection(title: "Insights") {
-            VStack(spacing: 8) {
-                ThresholdSliderRow(
-                    title: "Quota warn",
-                    value: $model.settingsDraft.insightThresholds.quotaWarningProgress,
-                    range: 0.5...0.95,
-                    step: 0.05,
-                    valueText: StatusFormatters.percent(model.settingsDraft.insightThresholds.quotaWarningProgress)
-                )
-
-                ThresholdSliderRow(
-                    title: "Quota critical",
-                    value: $model.settingsDraft.insightThresholds.quotaCriticalProgress,
-                    range: 0.75...1,
-                    step: 0.05,
-                    valueText: StatusFormatters.percent(model.settingsDraft.insightThresholds.quotaCriticalProgress)
-                )
-
-                ThresholdSliderRow(
-                    title: "Balance warn",
-                    value: $model.settingsDraft.insightThresholds.lowBalanceDays,
-                    range: 1...14,
-                    step: 1,
-                    valueText: "\(Int(model.settingsDraft.insightThresholds.lowBalanceDays))d"
-                )
-
-                SettingsControlRow(title: "Monthly budget") {
-                    TextField(
-                        "0",
-                        value: $model.settingsDraft.insightThresholds.monthlyBudgetUSD,
-                        format: .number.precision(.fractionLength(0...2))
-                    )
-                    .textFieldStyle(.roundedBorder)
-                    .frame(maxWidth: .infinity)
-                    Text("USD")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                }
-
-                ThresholdSliderRow(
-                    title: "Token surge",
-                    value: $model.settingsDraft.insightThresholds.tokenSurgeRatio,
-                    range: 1.1...3,
-                    step: 0.05,
-                    valueText: "\(Int(model.settingsDraft.insightThresholds.tokenSurgeRatio * 100))%"
-                )
-
-                ThresholdSliderRow(
-                    title: "Spend surge",
-                    value: $model.settingsDraft.insightThresholds.spendSurgeRatio,
-                    range: 1.1...3,
-                    step: 0.05,
-                    valueText: "\(Int(model.settingsDraft.insightThresholds.spendSurgeRatio * 100))%"
-                )
-
-                ThresholdSliderRow(
-                    title: "Model share",
-                    value: $model.settingsDraft.insightThresholds.modelConcentrationShare,
-                    range: 0.5...0.95,
-                    step: 0.05,
-                    valueText: StatusFormatters.percent(model.settingsDraft.insightThresholds.modelConcentrationShare)
-                )
-
-                ThresholdSliderRow(
-                    title: "Latency",
-                    value: $model.settingsDraft.insightThresholds.latencyWarningMs,
-                    range: 5_000...60_000,
-                    step: 1_000,
-                    valueText: latencyThresholdText
-                )
-            }
-        }
-    }
-
-    private var latencyThresholdText: String {
-        String(format: "%.0fs", model.settingsDraft.insightThresholds.latencyWarningMs / 1_000)
     }
 }
 
@@ -369,24 +304,6 @@ struct InsightNotificationPermissionRow: View {
     }
 }
 
-struct ThresholdSliderRow: View {
-    let title: String
-    @Binding var value: Double
-    let range: ClosedRange<Double>
-    let step: Double
-    let valueText: String
-
-    var body: some View {
-        SettingsControlRow(title: title) {
-            Slider(value: $value, in: range, step: step)
-                .frame(maxWidth: .infinity)
-            Text(valueText)
-                .font(.callout.monospacedDigit())
-                .frame(width: 48, alignment: .trailing)
-        }
-    }
-}
-
 struct SettingsControlRow<Content: View>: View {
     let title: String
     @ViewBuilder let content: Content
@@ -422,34 +339,6 @@ struct SettingsSection<Content: View>: View {
             RoundedRectangle(cornerRadius: 8)
                 .stroke(PanelColors.border, lineWidth: 1)
         )
-    }
-}
-
-struct LoginSettingsSection: View {
-    @ObservedObject var model: MonitorViewModel
-    let dismiss: DismissAction
-
-    var body: some View {
-        SettingsSection(title: "Login") {
-            TextField("Email", text: $model.loginEmail)
-                .textFieldStyle(.roundedBorder)
-            SecureField("Password", text: $model.loginPassword)
-                .textFieldStyle(.roundedBorder)
-            Button {
-                model.loginAndSave()
-            } label: {
-                Label("Login and Save Account", systemImage: "person.crop.circle.badge.plus")
-            }
-            .disabled(!LoginFormState(baseURL: model.settingsDraft.baseURL, email: model.loginEmail, password: model.loginPassword).canSubmit || model.isLoggingIn)
-
-            Button(role: .destructive) {
-                model.disconnect()
-                dismiss()
-            } label: {
-                Label("Remove Current Account", systemImage: "person.crop.circle.badge.xmark")
-            }
-            .disabled(model.config.selectedAccountID == nil && model.config.authToken.isEmpty && model.settingsDraft.authToken.isEmpty)
-        }
     }
 }
 

@@ -30,7 +30,7 @@ final class PreviewCapture: NSObject, WKNavigationDelegate {
     }
 
     func start() {
-        webView.loadFileURL(htmlURL, allowingReadAccessTo: htmlURL.deletingLastPathComponent())
+        webView.loadFileURL(htmlURL, allowingReadAccessTo: root)
     }
 
     func webView(_ webView: WKWebView, didFinish _: WKNavigation!) {

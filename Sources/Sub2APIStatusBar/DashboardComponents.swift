@@ -30,12 +30,11 @@ struct UserAccountCard: View {
     }
 
     var body: some View {
-        HStack(spacing: 12) {
-            Image(systemName: "person.crop.circle.fill")
-                .font(.system(size: 24, weight: .semibold))
-                .foregroundStyle(.blue)
-                .frame(width: 38, height: 38)
-                .background(Color.blue.opacity(0.12), in: RoundedRectangle(cornerRadius: 8))
+        HStack(spacing: 10) {
+            Image(systemName: "person.crop.circle")
+                .font(.system(size: 18, weight: .medium))
+                .foregroundStyle(.secondary)
+                .frame(width: 26, height: 26)
 
             VStack(alignment: .leading, spacing: 4) {
                 Text(displayName)
@@ -57,12 +56,6 @@ struct UserAccountCard: View {
                 )
             }
         }
-        .padding(12)
-        .background(PanelColors.elevatedSurface, in: RoundedRectangle(cornerRadius: 8))
-        .overlay(
-            RoundedRectangle(cornerRadius: 8)
-                .stroke(PanelColors.border, lineWidth: 1)
-        )
     }
 }
 
@@ -129,51 +122,51 @@ struct UsageInsightsView: View {
     let insights: UsageInsights
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 10) {
+        VStack(alignment: .leading, spacing: 9) {
             HStack(alignment: .firstTextBaseline) {
-                Label("Usage Insights", systemImage: "sparkles")
-                    .font(.system(size: 14, weight: .semibold))
+                Text("Signals")
+                    .font(.system(size: 11, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                    .textCase(.uppercase)
                 Spacer()
                 Text(insights.headline)
-                    .font(.caption)
+                    .font(.system(size: 10))
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
                     .minimumScaleFactor(0.75)
             }
 
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: 10) {
-                ForEach(insights.items.prefix(4)) { item in
-                    HStack(spacing: 9) {
+            VStack(spacing: 0) {
+                ForEach(Array(insights.items.prefix(4).enumerated()), id: \.element.id) { index, item in
+                    if index > 0 {
+                        Divider()
+                    }
+                    HStack(spacing: 8) {
                         SafeSystemImage(systemName: iconName(for: item.kind))
-                            .font(.system(size: 14, weight: .semibold))
+                            .font(.system(size: 12, weight: .semibold))
                             .foregroundStyle(color(for: item.severity))
-                            .frame(width: 30, height: 30)
-                            .background(color(for: item.severity).opacity(0.14), in: RoundedRectangle(cornerRadius: 6))
+                            .frame(width: 20)
 
                         VStack(alignment: .leading, spacing: 3) {
                             Text(item.title)
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                                .lineLimit(1)
-                            Text(item.value)
-                                .font(.callout.weight(.semibold).monospacedDigit())
+                                .font(.system(size: 11, weight: .medium))
                                 .lineLimit(1)
                             Text(item.detail)
-                                .font(.caption2)
+                                .font(.system(size: 10))
                                 .foregroundStyle(.secondary)
-                                .lineLimit(2)
+                                .lineLimit(1)
                                 .minimumScaleFactor(0.8)
                         }
 
-                        Spacer(minLength: 0)
+                        Spacer(minLength: 8)
+
+                        Text(item.value)
+                            .font(.system(size: 12, weight: .semibold).monospacedDigit())
+                            .foregroundStyle(color(for: item.severity))
+                            .lineLimit(1)
+                            .minimumScaleFactor(0.75)
                     }
-                    .frame(maxWidth: .infinity, minHeight: 72, alignment: .leading)
-                    .padding(10)
-                    .background(PanelColors.surface, in: RoundedRectangle(cornerRadius: 8))
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 8)
-                            .stroke(PanelColors.border, lineWidth: 1)
-                    )
+                    .frame(minHeight: 43)
                 }
             }
         }

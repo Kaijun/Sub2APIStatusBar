@@ -1,0 +1,108 @@
+import AppKit
+import Sub2APIStatusCore
+
+struct MenuBarUsageLevels: Equatable {
+    let daily: Double?
+    let weekly: Double?
+    let monthly: Double?
+
+    init(snapshot: MonitorSnapshot) {
+        let subscriptions = snapshot.subscriptionSummary?.subscriptions ?? []
+        daily = subscriptions.compactMap(\.dailyProgress).max()
+        weekly = subscriptions.compactMap(\.weeklyProgress).max()
+        monthly = subscriptions.compactMap(\.monthlyProgress).max()
+    }
+}
+
+@MainActor
+enum MenuBarMeterImage {
+    private static let imageSize = NSSize(width: 18, height: 18)
+
+    static func make(
+        levels: MenuBarUsageLevels,
+        connected: Bool,
+        display: MenuBarUsageDisplay,
+        rows: MenuBarQuotaRows
+    ) -> NSImage {
+        let image = NSImage(size: imageSize, flipped: false) { _ in
+            NSGraphicsContext.current?.shouldAntialias = true
+
+            switch rows {
+            case .two:
+                drawBar(rect: NSRect(x: 1.5, y: 9.5, width: 15, height: 6), usage: levels.daily, connected: connected, display: display)
+                drawBar(rect: NSRect(x: 1.5, y: 2.5, width: 15, height: 4), usage: levels.weekly, connected: connected, display: display)
+            case .three:
+                drawBar(rect: NSRect(x: 2, y: 11.5, width: 14, height: 3.5), usage: levels.daily, connected: connected, display: display)
+                drawBar(rect: NSRect(x: 2, y: 7, width: 14, height: 2.5), usage: levels.weekly, connected: connected, display: display)
+                drawBar(rect: NSRect(x: 2, y: 3, width: 14, height: 2.5), usage: levels.monthly, connected: connected, display: display)
+            }
+
+            if !connected {
+                let slash = NSBezierPath()
+                slash.move(to: NSPoint(x: 3, y: 3))
+                slash.line(to: NSPoint(x: 15, y: 15))
+                slash.lineWidth = 1.5
+                slash.lineCapStyle = .round
+                NSColor.labelColor.setStroke()
+                slash.stroke()
+            }
+
+            return true
+        }
+        image.isTemplate = true
+        image.accessibilityDescription = accessibilityDescription(connected: connected, display: display, rows: rows)
+        return image
+    }
+
+    private static func drawBar(
+        rect: NSRect,
+        usage: Double?,
+        connected: Bool,
+        display: MenuBarUsageDisplay
+    ) {
+        let ink = NSColor.labelColor
+        let radius = rect.height / 2
+        let track = NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius)
+
+        ink.withAlphaComponent(0.24).setFill()
+        track.fill()
+
+        let strokeRect = rect.insetBy(dx: 0.5, dy: 0.5)
+        let outline = NSBezierPath(
+            roundedRect: strokeRect,
+            xRadius: max(radius - 0.5, 0),
+            yRadius: max(radius - 0.5, 0)
+        )
+        outline.lineWidth = 1
+        ink.withAlphaComponent(0.44).setStroke()
+        outline.stroke()
+
+        guard connected, let usage else {
+            return
+        }
+
+        let used = min(max(usage, 0), 1)
+        let filled = display == .remaining ? 1 - used : used
+        let fillWidth = rect.width * filled
+        guard fillWidth > 0 else {
+            return
+        }
+
+        NSGraphicsContext.current?.cgContext.saveGState()
+        track.addClip()
+        ink.setFill()
+        NSBezierPath(rect: NSRect(x: rect.minX, y: rect.minY, width: min(fillWidth, rect.width), height: rect.height)).fill()
+        NSGraphicsContext.current?.cgContext.restoreGState()
+    }
+
+    private static func accessibilityDescription(
+        connected: Bool,
+        display: MenuBarUsageDisplay,
+        rows: MenuBarQuotaRows
+    ) -> String {
+        guard connected else {
+            return "Sub2API disconnected"
+        }
+        return "Sub2API \(display.displayName.lowercased()) quota, \(rows.displayName.lowercased())"
+    }
+}
