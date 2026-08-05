@@ -402,7 +402,7 @@ private struct QuotaProgressBar: View {
                 )
             }
 
-            for marker in normalized(markers) {
+            for marker in visibleMarkers(markers, progress: clampedProgress) {
                 let centerX = aligned(size.width * marker, scale: scale)
                 let punchRect = CGRect(x: centerX - 2.5, y: 0, width: 5, height: size.height)
                 let stripeWidth = max(1 / scale, 1)
@@ -424,8 +424,11 @@ private struct QuotaProgressBar: View {
         .accessibilityValue(StatusFormatters.percent(min(max(progress, 0), 1)))
     }
 
-    private func normalized(_ values: [Double]) -> [Double] {
-        values.map { min(max($0, 0), 1) }.filter { $0 > 0 && $0 < 1 }
+    private func visibleMarkers(_ values: [Double], progress: Double) -> [Double] {
+        guard progress < 1 else {
+            return []
+        }
+        return values.map { min(max($0, 0), 1) }.filter { $0 > 0 && $0 < 1 }
     }
 
     private func aligned(_ value: CGFloat, scale: CGFloat) -> CGFloat {

@@ -17,6 +17,7 @@ struct MenuBarUsageLevels: Equatable {
 @MainActor
 enum MenuBarMeterImage {
     private static let imageSize = NSSize(width: 18, height: 18)
+    private static let templateInk = NSColor.black
 
     static func make(
         levels: MenuBarUsageLevels,
@@ -43,7 +44,7 @@ enum MenuBarMeterImage {
                 slash.line(to: NSPoint(x: 15, y: 15))
                 slash.lineWidth = 1.5
                 slash.lineCapStyle = .round
-                NSColor.labelColor.setStroke()
+                templateInk.setStroke()
                 slash.stroke()
             }
 
@@ -60,7 +61,7 @@ enum MenuBarMeterImage {
         connected: Bool,
         display: MenuBarUsageDisplay
     ) {
-        let ink = NSColor.labelColor
+        let ink = templateInk
         let radius = rect.height / 2
         let track = NSBezierPath(roundedRect: rect, xRadius: radius, yRadius: radius)
 
@@ -83,10 +84,17 @@ enum MenuBarMeterImage {
 
         let used = min(max(usage, 0), 1)
         let filled = display == .remaining ? 1 - used : used
-        let fillWidth = rect.width * filled
-        guard fillWidth > 0 else {
+        guard filled > 0 else {
             return
         }
+
+        if filled >= 1 {
+            ink.setFill()
+            track.fill()
+            return
+        }
+
+        let fillWidth = rect.width * filled
 
         NSGraphicsContext.current?.cgContext.saveGState()
         track.addClip()
