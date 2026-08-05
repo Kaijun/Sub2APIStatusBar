@@ -52,7 +52,8 @@ private func pngSize(_ data: Data) -> (width: Int, height: Int)? {
     #expect(workflow.contains("SIGN_IDENTITY=\"$DEVELOPER_ID_APPLICATION\""))
     #expect(workflow.contains("Import Developer ID Certificate\n        if: github.ref_type == 'tag' && steps.signing.outputs.signing_ready == 'true'"))
     #expect(workflow.contains("if [[ \"${GITHUB_REF_TYPE:-}\" == \"tag\" && \"${{ steps.signing.outputs.signing_ready }}\" == \"true\" ]]"))
-    #expect(workflow.contains("elif [[ \"${GITHUB_REF_TYPE:-}\" == \"tag\" ]]"))
+    #expect(workflow.contains("Apple signing secrets are not configured; creating an ad-hoc signed release."))
+    #expect(workflow.contains("VERSION=\"$VERSION\" ./scripts/package-release.sh"))
 }
 
 @Test func releaseScriptsBuildAndVerifyDMGArtifacts() throws {
