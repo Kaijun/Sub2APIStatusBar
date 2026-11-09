@@ -1,0 +1,42 @@
+README.md
+  h_b5efc38a82fcd9 16,20,66,68-72,77-78,102-103,117
+README.zh-CN.md
+  h_b5efc38a82fcd9 16,20,66,68-72,77-78,102-103,117
+SECURITY.md
+  h_b5efc38a82fcd9 36
+Sources/Sub2APIStatusBar/LoginViews.swift
+  h_b5efc38a82fcd9 10,40,52-53,87,91,95,100,104,129,148-162
+Sources/Sub2APIStatusBar/MenuBarMeterImage.swift
+  h_b5efc38a82fcd9 23,28-29,44,98,103
+Sources/Sub2APIStatusBar/MonitorViewModel.swift
+  h_b5efc38a82fcd9 14-16,31-32,43-44,68,76-78,80-100,102-103,109,111,113-118,121-123,127,139-141,143-145,147,151-176,190-191,204,207,211-218,220-225,228-229,231,235,237,239-241,259,261,263-266,273,275-276,278-282,284-285,289-293,295-297,299,303-319,321-325,332-393,553-554,572,574
+Sources/Sub2APIStatusBar/SettingsView.swift
+  h_b5efc38a82fcd9 20-22,78,82,102-103,107-146,149,151-162,200-285
+Sources/Sub2APIStatusBar/Sub2APIStatusBarApp.swift
+  h_b5efc38a82fcd9 97,259
+Sources/Sub2APIStatusCore/AccountCredentials.swift
+  h_b5efc38a82fcd9 1-91
+Sources/Sub2APIStatusCore/AppConfig.swift
+  h_b5efc38a82fcd9 226,234-235,243,247-263,407,448-459,499
+Sources/Sub2APIStatusCore/DiagnosticReport.swift
+  h_b5efc38a82fcd9 33
+Sources/Sub2APIStatusCore/Models.swift
+  h_b5efc38a82fcd9 792
+Sources/Sub2APIStatusCore/SessionAuthenticator.swift
+  h_b5efc38a82fcd9 1-93
+Tests/Sub2APIStatusCoreTests/SessionAuthenticatorTests.swift
+  h_b5efc38a82fcd9 1-310
+Tests/Sub2APIStatusCoreTests/Sub2APIStatusCoreTests.swift
+  h_b5efc38a82fcd9 87,97-125,729,1347
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.7.5",
+  "base_commit_sha": "83711c39b3780dd4674d670870372dfaaacc6335",
+  "prompts": {},
+  "humans": {
+    "h_b5efc38a82fcd9": {
+      "author": "Kaijun Chen <Demonbane.cn@gmail.com>"
+    }
+  }
+}
