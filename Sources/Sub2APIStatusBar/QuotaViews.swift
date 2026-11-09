@@ -42,13 +42,6 @@ struct SubscriptionQuotaCard: View {
                 progress: item.weeklyProgress,
                 resetInSeconds: item.weeklyResetInSeconds
             ),
-            QuotaWindowDisplay(
-                title: "Monthly",
-                used: item.monthlyUsedUSD,
-                limit: item.monthlyLimitUSD,
-                progress: item.monthlyProgress,
-                resetInSeconds: item.monthlyResetInSeconds
-            ),
         ]
     }
 

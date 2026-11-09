@@ -20,7 +20,6 @@ struct StatusMenuContent: View {
             if snapshot.connected {
                 quotaSection(for: quotaWindow(.daily))
                 quotaSection(for: quotaWindow(.weekly))
-                quotaSection(for: quotaWindow(.monthly))
 
                 Divider()
 
@@ -300,13 +299,11 @@ struct StatusMenuContent: View {
 private enum QuotaPeriod {
     case daily
     case weekly
-    case monthly
 
     var title: String {
         switch self {
         case .daily: "Daily"
         case .weekly: "Weekly"
-        case .monthly: "Monthly"
         }
     }
 
@@ -314,7 +311,6 @@ private enum QuotaPeriod {
         switch self {
         case .daily: subscription.dailyProgress
         case .weekly: subscription.weeklyProgress
-        case .monthly: subscription.monthlyProgress
         }
     }
 
@@ -322,7 +318,6 @@ private enum QuotaPeriod {
         switch self {
         case .daily: subscription.dailyResetInSeconds
         case .weekly: subscription.weeklyResetInSeconds
-        case .monthly: subscription.monthlyResetInSeconds
         }
     }
 
@@ -330,7 +325,6 @@ private enum QuotaPeriod {
         switch self {
         case .daily: subscription.dailyUsedUSD
         case .weekly: subscription.weeklyUsedUSD
-        case .monthly: subscription.monthlyUsedUSD
         }
     }
 
@@ -338,7 +332,6 @@ private enum QuotaPeriod {
         switch self {
         case .daily: subscription.dailyLimitUSD
         case .weekly: subscription.weeklyLimitUSD
-        case .monthly: subscription.monthlyLimitUSD
         }
     }
 }

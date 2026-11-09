@@ -11,6 +11,9 @@ final class MonitorViewModel: ObservableObject {
     @Published var isLoggingIn = false
     @Published var loginEmail = ""
     @Published var loginPassword = ""
+    @Published var loginBaseURL = ""
+    @Published var manualAuthToken = ""
+    @Published var remembersPassword = false
     @Published var settingsDraft: AppConfig
     @Published var settingsError: String?
     @Published var updateInfo: UpdateInfo?
@@ -25,6 +28,8 @@ final class MonitorViewModel: ObservableObject {
     var onSnapshotChange: ((MonitorSnapshot) -> Void)?
 
     private let store = ConfigStore()
+    private let credentialStore = KeychainCredentialStore()
+    private let sessionAuthenticator = SessionAuthenticator()
     private let updateChecker = GitHubUpdateChecker()
     private let insightNotifier = InsightNotifier()
     private var refreshTimer: Timer?
@@ -35,6 +40,8 @@ final class MonitorViewModel: ObservableObject {
         config = loaded
         settingsDraft = loaded
         loginEmail = loaded.selectedAccount?.email ?? ""
+        loginBaseURL = loaded.baseURL
+        remembersPassword = loaded.selectedAccount?.automaticLoginEnabled ?? false
         snapshot = .idle(mode: loaded.monitorMode)
         launchAtLoginEnabled = Self.currentLaunchAtLoginState()
     }
@@ -58,7 +65,7 @@ final class MonitorViewModel: ObservableObject {
             return
         }
 
-        if config.authToken.isEmpty {
+        if config.authToken.isEmpty && config.selectedAccount?.automaticLoginEnabled != true {
             publish(.idle(mode: config.monitorMode))
             return
         }
@@ -66,39 +73,58 @@ final class MonitorViewModel: ObservableObject {
         isRefreshing = true
         defer { isRefreshing = false }
 
-        let client = Sub2APIClient(config: config)
+        let initialConfig = config
+        var errorContext = initialConfig
+        var renewedSession = false
         do {
-            publish(try await userSnapshot(client: client))
-        } catch {
-            if await refreshAuthTokenIfNeeded(after: error) {
-                do {
-                    publish(try await userSnapshot(client: Sub2APIClient(config: config)))
-                    return
-                } catch {
-                    publishDisconnected(error)
-                    return
-                }
+            if initialConfig.authToken.isEmpty {
+                guard try await renewAuthSession(for: initialConfig) else { return }
+                renewedSession = true
             }
-            publishDisconnected(error)
+            let requestConfig = config
+            errorContext = requestConfig
+            do {
+                let next = try await userSnapshot(client: Sub2APIClient(config: requestConfig))
+                guard matchesAuthContext(requestConfig) else { return }
+                publish(next)
+            } catch {
+                guard matchesAuthContext(requestConfig) else { return }
+                guard let apiError = error as? Sub2APIError, apiError.isUnauthorized else { throw error }
+                guard !renewedSession else { throw error }
+                guard try await renewAuthSession(for: requestConfig) else { throw error }
+                let retryConfig = config
+                errorContext = retryConfig
+                let next = try await userSnapshot(client: Sub2APIClient(config: retryConfig))
+                guard matchesAuthContext(retryConfig) else { return }
+                publish(next)
+            }
+        } catch {
+            if matchesAuthContext(errorContext) {
+                publishDisconnected(error)
+            }
         }
     }
 
     private func userSnapshot(client: Sub2APIClient) async throws -> MonitorSnapshot {
-        let currentUser = try? await client.currentUser().user
+        let currentUser = try await Self.optionalAuthenticated { try await client.currentUser() }
         async let summaryTask = client.subscriptionSummary()
-        async let statsTask = client.usageDashboardStats()
+        async let statsTask = Self.optionalAuthenticated { try await client.usageDashboardStats() }
         let range = Self.lastSevenDayRange()
-        async let trendTask = client.usageDashboardTrend(startDate: range.start, endDate: range.end, granularity: "day")
-        async let modelsTask = client.usageDashboardModels(startDate: range.start, endDate: range.end)
+        async let trendTask = Self.optionalAuthenticated {
+            try await client.usageDashboardTrend(startDate: range.start, endDate: range.end, granularity: "day")
+        }
+        async let modelsTask = Self.optionalAuthenticated {
+            try await client.usageDashboardModels(startDate: range.start, endDate: range.end)
+        }
 
         let summary = try await summaryTask
-        let stats = try? await statsTask
-        let trend = try? await trendTask
-        let models = try? await modelsTask
+        let stats = try await statsTask
+        let trend = try await trendTask
+        let models = try await modelsTask
         return MonitorSnapshot(
             mode: .user,
             connected: true,
-            currentUser: currentUser,
+            currentUser: currentUser?.user,
             stats: stats,
             trend: trend?.trend,
             modelDistribution: models?.models,
@@ -110,28 +136,42 @@ final class MonitorViewModel: ObservableObject {
         )
     }
 
-    private func refreshAuthTokenIfNeeded(after error: Error) async -> Bool {
-        guard let apiError = error as? Sub2APIError,
-              apiError.isUnauthorized,
-              !config.refreshToken.isEmpty else {
-            return false
-        }
-
-        var refreshConfig = config
-        refreshConfig.authToken = ""
+    nonisolated private static func optionalAuthenticated<Value: Sendable>(
+        _ operation: @Sendable () async throws -> Value
+    ) async throws -> Value? {
         do {
-            let response = try await Sub2APIClient(config: refreshConfig).refreshToken(config.refreshToken)
-            var next = config
-            next.authToken = response.accessToken
-            next.refreshToken = response.refreshToken ?? config.refreshToken
-            try store.save(next)
-            let loaded = store.load()
-            config = loaded
-            settingsDraft = loaded
-            return true
+            return try await operation()
+        } catch let error as Sub2APIError where error.isUnauthorized {
+            throw error
         } catch {
-            return false
+            return nil
         }
+    }
+
+    private func matchesAuthContext(_ expected: AppConfig) -> Bool {
+        config.selectedAccountID == expected.selectedAccountID
+            && config.baseURL == expected.baseURL
+            && config.authToken == expected.authToken
+            && config.refreshToken == expected.refreshToken
+            && config.selectedAccount?.automaticLoginEnabled == expected.selectedAccount?.automaticLoginEnabled
+    }
+
+    private func renewAuthSession(for expected: AppConfig) async throws -> Bool {
+        guard matchesAuthContext(expected) else { return false }
+        var refreshConfig = expected
+        refreshConfig.authToken = ""
+        guard let response = try await sessionAuthenticator.renewSession(
+            config: expected,
+            client: Sub2APIClient(config: refreshConfig)
+        ), matchesAuthContext(expected) else { return false }
+        var next = config
+        next.authToken = response.accessToken
+        next.refreshToken = response.refreshToken ?? (expected.selectedAccount?.automaticLoginEnabled == true ? "" : expected.refreshToken)
+        try store.save(next)
+        let loaded = store.load()
+        config = loaded
+        syncAccountSettings()
+        return true
     }
 
     private func publishDisconnected(_ error: Error) {
@@ -147,7 +187,8 @@ final class MonitorViewModel: ObservableObject {
         ))
     }
 
-    func saveSettings() {
+    @discardableResult
+    func saveSettings() -> Bool {
         settingsError = nil
         var next = settingsDraft
         next.normalize()
@@ -160,36 +201,45 @@ final class MonitorViewModel: ObservableObject {
             refreshNotificationAuthorization()
             onSnapshotChange?(snapshot)
             refresh()
+            return true
         } catch {
             settingsError = error.localizedDescription
+            return false
         }
     }
 
+    private func syncAccountSettings() {
+        settingsDraft.baseURL = config.baseURL
+        settingsDraft.authToken = config.authToken
+        settingsDraft.refreshToken = config.refreshToken
+        settingsDraft.accounts = config.accounts
+        settingsDraft.selectedAccountID = config.selectedAccountID
+    }
+
     func disconnect() {
+        guard let account = config.selectedAccount else { return }
+        removeAccount(account)
+    }
+
+    func removeAccount(_ account: StoredAccount) {
+        guard config.accounts.contains(where: { $0.id == account.id }) else { return }
         settingsError = nil
         var next = config
-        let accountID = next.selectedAccountID
-        next.accounts.removeAll { $0.id == accountID }
-        next.selectedAccountID = next.accounts.first?.id
-        if let selectedAccountID = next.selectedAccountID {
-            let tokens = store.loadTokens(for: selectedAccountID)
-            next.selectAccount(id: selectedAccountID, tokens: tokens)
-        } else {
-            next.clearAuthTokens()
-        }
+        let wasActive = next.selectedAccountID == account.id
+        next.removeAccount(id: account.id)
         do {
-            if let accountID {
-                try store.deleteTokens(for: accountID)
-            }
+            try credentialStore.delete(for: account.id)
             try store.save(next)
             let loaded = store.load()
             config = loaded
-            settingsDraft = loaded
+            syncAccountSettings()
             loginEmail = loaded.selectedAccount?.email ?? ""
+            loginBaseURL = loaded.baseURL
             loginPassword = ""
-            if loaded.authToken.isEmpty {
+            manualAuthToken = ""
+            remembersPassword = loaded.selectedAccount?.automaticLoginEnabled ?? false
+            if wasActive {
                 publish(.idle(mode: loaded.monitorMode))
-            } else {
                 refresh()
             }
         } catch {
@@ -206,43 +256,138 @@ final class MonitorViewModel: ObservableObject {
             try store.save(next)
             let loaded = store.load()
             config = loaded
-            settingsDraft = loaded
+            syncAccountSettings()
             loginEmail = loaded.selectedAccount?.email ?? ""
+            loginBaseURL = loaded.baseURL
             loginPassword = ""
-            onSnapshotChange?(snapshot)
-            if loaded.authToken.isEmpty {
-                publish(.idle(mode: loaded.monitorMode))
-            } else {
-                refresh()
-            }
+            manualAuthToken = ""
+            remembersPassword = loaded.selectedAccount?.automaticLoginEnabled ?? false
+            publish(.idle(mode: loaded.monitorMode))
+            refresh()
         } catch {
             settingsError = error.localizedDescription
         }
     }
 
     func loginAndSave() {
+        guard !isLoggingIn else { return }
         settingsError = nil
-        var draft = settingsDraft
+        var draft = config
+        draft.baseURL = loginBaseURL
         draft.authToken = ""
+        draft.normalize()
+        let email = loginEmail.trimmingCharacters(in: .whitespacesAndNewlines)
+        let password = loginPassword
+        let remember = remembersPassword
+        guard LoginFormState(baseURL: draft.baseURL, email: email, password: password).canSubmit else { return }
         let client = Sub2APIClient(config: draft)
+        let originalContext = config
+        isLoggingIn = true
         Task {
-            isLoggingIn = true
             defer { isLoggingIn = false }
             do {
-                let response = try await client.login(email: loginEmail, password: loginPassword)
+                let response = try await client.login(email: email, password: password)
+                guard matchesAuthContext(originalContext) else {
+                    settingsError = "The active account changed during login. Please sign in again."
+                    return
+                }
                 let tokens = StoredAuthTokens(authToken: response.accessToken, refreshToken: response.refreshToken ?? "")
-                let displayName = response.user?.username ?? loginEmail
-                settingsDraft.upsertAccount(
+                let displayName = response.user?.username ?? email
+                var next = config
+                let accountID = next.upsertAccount(
                     name: displayName,
-                    email: response.user?.email ?? loginEmail,
+                    email: response.user?.email ?? email,
                     baseURL: draft.baseURL,
                     tokens: tokens
                 )
+                if remember {
+                    try credentialStore.save(
+                        SavedLoginCredentials(baseURL: draft.baseURL, email: response.user?.email ?? email, password: password),
+                        for: accountID
+                    )
+                } else {
+                    try credentialStore.delete(for: accountID)
+                }
+                if let index = next.accounts.firstIndex(where: { $0.id == accountID }) {
+                    next.accounts[index].automaticLoginEnabled = remember
+                }
+                try store.save(next)
+                config = store.load()
+                syncAccountSettings()
+                loginEmail = config.selectedAccount?.email ?? email
+                loginBaseURL = config.baseURL
+                remembersPassword = remember
                 loginPassword = ""
-                saveSettings()
+                manualAuthToken = ""
+                await sessionAuthenticator.reset(accountID: accountID)
+                scheduleTimer()
+                publish(.idle(mode: config.monitorMode))
+                refresh()
             } catch {
                 settingsError = error.localizedDescription
             }
+        }
+    }
+
+    func saveManualToken() {
+        guard !isLoggingIn else { return }
+        settingsError = nil
+        var next = config
+        next.baseURL = loginBaseURL
+        next.authToken = manualAuthToken
+        next.normalize()
+        guard next.apiBaseURL != nil, !next.authToken.isEmpty else {
+            settingsError = "Enter a valid server URL and bearer token."
+            return
+        }
+        let existing = next.accounts.first {
+            $0.baseURL == next.baseURL && $0.authToken == next.authToken
+        }
+        // A new manually entered token has no known refresh token or account identity.
+        next.refreshToken = existing?.refreshToken ?? ""
+        let accountID = next.upsertAccount(
+            name: existing?.name ?? "Manual Token",
+            email: existing?.email ?? "",
+            baseURL: next.baseURL,
+            tokens: StoredAuthTokens(authToken: next.authToken, refreshToken: next.refreshToken)
+        )
+        do {
+            try credentialStore.delete(for: accountID)
+            if let index = next.accounts.firstIndex(where: { $0.id == accountID }) {
+                next.accounts[index].automaticLoginEnabled = false
+            }
+            try store.save(next)
+            config = store.load()
+            syncAccountSettings()
+            loginEmail = config.selectedAccount?.email ?? ""
+            loginBaseURL = config.baseURL
+            loginPassword = ""
+            manualAuthToken = ""
+            remembersPassword = false
+            scheduleTimer()
+            publish(.idle(mode: config.monitorMode))
+            refresh()
+        } catch {
+            settingsError = error.localizedDescription
+        }
+    }
+
+    func forgetSavedPassword() {
+        guard let accountID = config.selectedAccountID else { return }
+        settingsError = nil
+        do {
+            try credentialStore.delete(for: accountID)
+            var next = config
+            if let index = next.accounts.firstIndex(where: { $0.id == accountID }) {
+                next.accounts[index].automaticLoginEnabled = false
+            }
+            try store.save(next)
+            config = store.load()
+            syncAccountSettings()
+            remembersPassword = false
+            loginPassword = ""
+        } catch {
+            settingsError = error.localizedDescription
         }
     }
 
@@ -405,8 +550,8 @@ final class MonitorViewModel: ObservableObject {
     var loginRecoverySuggestion: RecoverySuggestion {
         RecoverySuggestion.make(
             message: settingsError,
-            hasBaseURL: !settingsDraft.baseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-            hasToken: !settingsDraft.authToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+            hasBaseURL: !loginBaseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+            hasToken: !manualAuthToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         )
     }
 
@@ -424,9 +569,9 @@ final class MonitorViewModel: ObservableObject {
     func performRecoveryAction(_ action: RecoveryActionKind) {
         switch action {
         case .enterURL:
-            settingsDraft.baseURL = settingsDraft.baseURL.trimmingCharacters(in: .whitespacesAndNewlines)
+            loginBaseURL = loginBaseURL.trimmingCharacters(in: .whitespacesAndNewlines)
         case .openServer:
-            openURL(settingsDraft.baseURL.isEmpty ? config.baseURL : settingsDraft.baseURL)
+            openURL(loginBaseURL.isEmpty ? config.baseURL : loginBaseURL)
         case .login:
             loginPassword = ""
         case .replaceToken:

@@ -17,9 +17,9 @@ struct SettingsView: View {
 
             ScrollView {
                 VStack(alignment: .leading, spacing: 16) {
-                    if !model.config.accounts.isEmpty {
-                        AccountSettingsSection(model: model)
-                    }
+                    AccountSettingsSection(model: model)
+                    LoginSettingsSection(model: model)
+                    UsageRefreshSettingsSection(model: model)
                     GeneralSettingsSection(model: model)
                     AlertSettingsSection(model: model)
                     UpdateSettingsSection(model: model)
@@ -75,11 +75,11 @@ struct SettingsView: View {
         HStack {
             Spacer()
             Button("Cancel") {
+                model.settingsDraft = model.config
                 close()
             }
             Button("Save") {
-                model.saveSettings()
-                close()
+                if model.saveSettings() { close() }
             }
             .buttonStyle(.borderedProminent)
         }
@@ -99,25 +99,67 @@ struct SettingsView: View {
 
 struct AccountSettingsSection: View {
     @ObservedObject var model: MonitorViewModel
+    @State private var accountToRemove: StoredAccount?
+    @State private var confirmsRemoval = false
 
     var body: some View {
         SettingsSection(title: "Accounts") {
-            SettingsControlRow(title: "Active Account") {
-                Picker("", selection: Binding(
-                    get: { model.config.selectedAccountID ?? "" },
-                    set: { id in
-                        if let account = model.config.accounts.first(where: { $0.id == id }) {
-                            model.selectAccount(account)
-                            model.settingsDraft = model.config
+            VStack(alignment: .leading, spacing: 10) {
+                if model.config.accounts.isEmpty {
+                    Text("No saved accounts. Add an account below.")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
+                }
+                ForEach(model.config.accounts) { account in
+                    HStack(spacing: 10) {
+                        Image(systemName: account.id == model.config.selectedAccountID ? "checkmark.circle.fill" : "person.crop.circle")
+                            .foregroundStyle(account.id == model.config.selectedAccountID ? Color.accentColor : .secondary)
+                        VStack(alignment: .leading, spacing: 3) {
+                            Text(account.displayName)
+                                .font(.callout.weight(.medium))
+                                .lineLimit(1)
+                            if !account.email.isEmpty && account.email != account.displayName {
+                                Text(account.email)
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                                    .lineLimit(1)
+                            }
+                            Text(account.baseURL)
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                                .lineLimit(1)
+                                .truncationMode(.middle)
+                            Text(account.automaticLoginEnabled ? "Password auto-login" : "Token session")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        }
+                        Spacer(minLength: 4)
+                        if account.id == model.config.selectedAccountID {
+                            Text("Active")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                        } else {
+                            Button("Use") { model.selectAccount(account) }
+                        }
+                        Button("Remove", role: .destructive) {
+                            accountToRemove = account
+                            confirmsRemoval = true
                         }
                     }
-                )) {
-                    ForEach(model.config.accounts) { account in
-                        Text(account.displayName).tag(account.id)
-                    }
+                    .disabled(model.isLoggingIn)
                 }
-                .labelsHidden()
-                .frame(maxWidth: .infinity, alignment: .leading)
+                Text("Account changes are saved immediately. Removing an account deletes its saved tokens and password from this Mac.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+        }
+        .confirmationDialog("Remove this account?", isPresented: $confirmsRemoval, titleVisibility: .visible) {
+            if let account = accountToRemove {
+                Button("Remove Account", role: .destructive) { model.removeAccount(account) }
+            }
+        } message: {
+            if let account = accountToRemove {
+                Text("Remove \(account.displayName) from this Mac? Your account on the server will not be deleted.")
             }
         }
     }
@@ -129,12 +171,6 @@ struct GeneralSettingsSection: View {
     var body: some View {
         SettingsSection(title: "General") {
             VStack(spacing: 8) {
-                SettingsControlRow(title: "Base URL") {
-                    TextField("https://sub2api.example.com", text: $model.settingsDraft.baseURL)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(maxWidth: .infinity)
-                }
-
                 SettingsControlRow(title: "Menu Bar Fill") {
                     Picker("", selection: $model.settingsDraft.menuBarUsageDisplay) {
                         ForEach(MenuBarUsageDisplay.allCases) { display in
@@ -145,18 +181,6 @@ struct GeneralSettingsSection: View {
                     .controlSize(.small)
                     .frame(maxWidth: .infinity)
                 }
-
-                SettingsControlRow(title: "Menu Bar Rows") {
-                    Picker("", selection: $model.settingsDraft.menuBarQuotaRows) {
-                        ForEach(MenuBarQuotaRows.allCases) { rows in
-                            Text(rows.displayName).tag(rows)
-                        }
-                    }
-                    .pickerStyle(.segmented)
-                    .controlSize(.small)
-                    .frame(maxWidth: .infinity)
-                }
-
                 SettingsControlRow(title: "Startup") {
                     Toggle("Launch at login", isOn: Binding(
                         get: { model.launchAtLoginEnabled },
@@ -164,23 +188,96 @@ struct GeneralSettingsSection: View {
                     ))
                 }
 
-                SettingsControlRow(title: "Refresh") {
-                    Slider(value: $model.settingsDraft.refreshIntervalSeconds, in: 5...300, step: 5)
-                        .frame(maxWidth: .infinity)
-                    Text("\(Int(model.settingsDraft.refreshIntervalSeconds))s")
-                        .font(.callout.monospacedDigit())
-                        .frame(width: 42, alignment: .trailing)
-                }
-
-                SettingsControlRow(title: "Bearer Token") {
-                    SecureField("Token", text: $model.settingsDraft.authToken)
-                        .textFieldStyle(.roundedBorder)
-                        .frame(maxWidth: .infinity)
-                }
             }
 
             if let error = model.launchAtLoginError {
                 MessageRow(message: error)
+            }
+        }
+    }
+}
+
+struct UsageRefreshSettingsSection: View {
+    @ObservedObject var model: MonitorViewModel
+
+    var body: some View {
+        SettingsSection(title: "Usage Data Refresh") {
+            SettingsControlRow(title: "Usage refresh interval") {
+                Slider(value: $model.settingsDraft.refreshIntervalSeconds, in: 5...300, step: 5)
+                    .frame(maxWidth: .infinity)
+                Text("\(Int(model.settingsDraft.refreshIntervalSeconds))s")
+                    .font(.callout.monospacedDigit())
+                    .frame(width: 42, alignment: .trailing)
+            }
+            Text("Updates quota, requests, tokens, and cost. Login sessions are renewed when they expire; this interval controls usage polling only.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+        }
+    }
+}
+
+struct LoginSettingsSection: View {
+    @ObservedObject var model: MonitorViewModel
+    @State private var showsManualToken = false
+
+    private var canLogin: Bool {
+        LoginFormState(
+            baseURL: model.loginBaseURL,
+            email: model.loginEmail,
+            password: model.loginPassword
+        ).canSubmit
+    }
+
+    var body: some View {
+        SettingsSection(title: "Add Account / Sign In") {
+            VStack(alignment: .leading, spacing: 10) {
+                Text("Sign in to add an account or update an existing login. Login is saved immediately.")
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                SettingsControlRow(title: "Server URL") {
+                    TextField("https://sub2api.example.com", text: $model.loginBaseURL)
+                        .textFieldStyle(.roundedBorder)
+                }
+                SettingsControlRow(title: "Email") {
+                    TextField("Email", text: $model.loginEmail)
+                        .textFieldStyle(.roundedBorder)
+                }
+                SettingsControlRow(title: "Password") {
+                    SecureField("Password", text: $model.loginPassword)
+                        .textFieldStyle(.roundedBorder)
+                }
+                RememberPasswordControl(model: model)
+                HStack {
+                    Button(model.isLoggingIn ? "Connecting..." : "Login") {
+                        model.loginAndSave()
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .disabled(!canLogin || model.isLoggingIn)
+
+                    if model.config.selectedAccount?.automaticLoginEnabled == true {
+                        Text("Automatic login enabled")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Spacer()
+                        Button("Forget Saved Password") {
+                            model.forgetSavedPassword()
+                        }
+                        .disabled(model.isLoggingIn)
+                    }
+                }
+                DisclosureGroup("Manual Bearer Token", isExpanded: $showsManualToken) {
+                    VStack(alignment: .leading, spacing: 8) {
+                        SecureField("Bearer Token", text: $model.manualAuthToken)
+                            .textFieldStyle(.roundedBorder)
+                        Text("Manual token sessions need a refresh token to renew automatically. Enable password auto-login above to renew without one.")
+                            .font(.caption)
+                            .foregroundStyle(.secondary)
+                        Button("Save Token") { model.saveManualToken() }
+                            .disabled(model.manualAuthToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                    }
+                    .padding(.top, 6)
+                }
+                .disabled(model.isLoggingIn)
             }
         }
     }

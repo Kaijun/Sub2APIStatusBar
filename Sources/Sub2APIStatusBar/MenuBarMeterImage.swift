@@ -4,13 +4,11 @@ import Sub2APIStatusCore
 struct MenuBarUsageLevels: Equatable {
     let daily: Double?
     let weekly: Double?
-    let monthly: Double?
 
     init(snapshot: MonitorSnapshot) {
         let subscriptions = snapshot.subscriptionSummary?.subscriptions ?? []
         daily = subscriptions.compactMap(\.dailyProgress).max()
         weekly = subscriptions.compactMap(\.weeklyProgress).max()
-        monthly = subscriptions.compactMap(\.monthlyProgress).max()
     }
 }
 
@@ -22,21 +20,13 @@ enum MenuBarMeterImage {
     static func make(
         levels: MenuBarUsageLevels,
         connected: Bool,
-        display: MenuBarUsageDisplay,
-        rows: MenuBarQuotaRows
+        display: MenuBarUsageDisplay
     ) -> NSImage {
         let image = NSImage(size: imageSize, flipped: false) { _ in
             NSGraphicsContext.current?.shouldAntialias = true
 
-            switch rows {
-            case .two:
-                drawBar(rect: NSRect(x: 1.5, y: 9.5, width: 15, height: 6), usage: levels.daily, connected: connected, display: display)
-                drawBar(rect: NSRect(x: 1.5, y: 2.5, width: 15, height: 4), usage: levels.weekly, connected: connected, display: display)
-            case .three:
-                drawBar(rect: NSRect(x: 2, y: 11.5, width: 14, height: 3.5), usage: levels.daily, connected: connected, display: display)
-                drawBar(rect: NSRect(x: 2, y: 7, width: 14, height: 2.5), usage: levels.weekly, connected: connected, display: display)
-                drawBar(rect: NSRect(x: 2, y: 3, width: 14, height: 2.5), usage: levels.monthly, connected: connected, display: display)
-            }
+            drawBar(rect: NSRect(x: 1.5, y: 9.5, width: 15, height: 6), usage: levels.daily, connected: connected, display: display)
+            drawBar(rect: NSRect(x: 1.5, y: 2.5, width: 15, height: 4), usage: levels.weekly, connected: connected, display: display)
 
             if !connected {
                 let slash = NSBezierPath()
@@ -51,7 +41,7 @@ enum MenuBarMeterImage {
             return true
         }
         image.isTemplate = true
-        image.accessibilityDescription = accessibilityDescription(connected: connected, display: display, rows: rows)
+        image.accessibilityDescription = accessibilityDescription(connected: connected, display: display)
         return image
     }
 
@@ -105,12 +95,11 @@ enum MenuBarMeterImage {
 
     private static func accessibilityDescription(
         connected: Bool,
-        display: MenuBarUsageDisplay,
-        rows: MenuBarQuotaRows
+        display: MenuBarUsageDisplay
     ) -> String {
         guard connected else {
             return "Sub2API disconnected"
         }
-        return "Sub2API \(display.displayName.lowercased()) quota, \(rows.displayName.lowercased())"
+        return "Sub2API \(display.displayName.lowercased()) quota, daily + weekly"
     }
 }

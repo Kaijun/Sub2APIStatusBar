@@ -133,7 +133,6 @@ public struct SocialShareSummary: Equatable, Sendable {
                 [
                     (name: "\(item.groupName) daily", progress: item.dailyProgress, resetInSeconds: item.dailyResetInSeconds),
                     (name: "\(item.groupName) weekly", progress: item.weeklyProgress, resetInSeconds: item.weeklyResetInSeconds),
-                    (name: "\(item.groupName) monthly", progress: item.monthlyProgress, resetInSeconds: item.monthlyResetInSeconds),
                 ]
             }
             .compactMap { candidate -> (name: String, progress: Double, resetInSeconds: Double?)? in

@@ -111,7 +111,6 @@ public enum UsageReport {
                 [
                     (name: "\(item.groupName) daily quota", progress: item.dailyProgress, resetInSeconds: item.dailyResetInSeconds),
                     (name: "\(item.groupName) weekly quota", progress: item.weeklyProgress, resetInSeconds: item.weeklyResetInSeconds),
-                    (name: "\(item.groupName) monthly quota", progress: item.monthlyProgress, resetInSeconds: item.monthlyResetInSeconds),
                 ]
             }
             .compactMap { candidate -> (name: String, progress: Double, resetInSeconds: Double?)? in

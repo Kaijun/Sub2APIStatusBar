@@ -7,7 +7,7 @@ struct LoginPanel: View {
 
     private var formState: LoginFormState {
         LoginFormState(
-            baseURL: model.settingsDraft.baseURL,
+            baseURL: model.loginBaseURL,
             email: model.loginEmail,
             password: model.loginPassword
         )
@@ -37,7 +37,7 @@ struct LoginPanel: View {
             OnboardingChecklistView(checklist: checklist)
 
             VStack(alignment: .leading, spacing: 12) {
-                TextField("Server URL", text: $model.settingsDraft.baseURL)
+                TextField("Server URL", text: $model.loginBaseURL)
                     .textFieldStyle(.roundedBorder)
                     .focused($focusedField, equals: .serverURL)
 
@@ -49,15 +49,8 @@ struct LoginPanel: View {
                     .textFieldStyle(.roundedBorder)
                     .focused($focusedField, equals: .password)
 
-                HStack {
-                    Text("Refresh")
-                        .font(.callout)
-                        .foregroundStyle(.secondary)
-                    Slider(value: $model.settingsDraft.refreshIntervalSeconds, in: 5...300, step: 5)
-                    Text("\(Int(model.settingsDraft.refreshIntervalSeconds))s")
-                        .font(.callout.monospacedDigit())
-                        .frame(width: 42, alignment: .trailing)
-                }
+                RememberPasswordControl(model: model)
+
             }
 
             RecoverySuggestionCard(suggestion: model.loginRecoverySuggestion) { action in
@@ -91,30 +84,24 @@ struct LoginPanel: View {
             VStack(alignment: .leading, spacing: 8) {
                 Text("Manual token")
                     .font(.headline)
-                SecureField("Bearer Token", text: $model.settingsDraft.authToken)
+                SecureField("Bearer Token", text: $model.manualAuthToken)
                     .textFieldStyle(.roundedBorder)
                     .focused($focusedField, equals: .token)
                 Button {
-                    model.settingsDraft.upsertAccount(
-                        name: model.loginEmail,
-                        email: model.loginEmail,
-                        baseURL: model.settingsDraft.baseURL,
-                        tokens: StoredAuthTokens(authToken: model.settingsDraft.authToken, refreshToken: model.settingsDraft.refreshToken)
-                    )
-                    model.saveSettings()
+                    model.saveManualToken()
                 } label: {
                     Label("Save Token", systemImage: "square.and.arrow.down")
                 }
-                .disabled(model.settingsDraft.authToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .disabled(model.manualAuthToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
             }
 
             HStack {
                 Button {
-                    model.openURL(model.settingsDraft.baseURL)
+                    model.openURL(model.loginBaseURL)
                 } label: {
                     Label("Open Server", systemImage: "safari")
                 }
-                .disabled(model.settingsDraft.baseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
+                .disabled(model.loginBaseURL.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
 
                 Spacer()
 
@@ -139,7 +126,7 @@ struct LoginPanel: View {
     private var checklist: OnboardingChecklist {
         OnboardingChecklist.make(
             form: formState,
-            manualToken: model.settingsDraft.authToken
+            manualToken: model.manualAuthToken
         )
     }
 
@@ -155,6 +142,21 @@ struct LoginPanel: View {
         case .retry:
             break
         }
+    }
+}
+
+struct RememberPasswordControl: View {
+    @ObservedObject var model: MonitorViewModel
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Toggle("Remember password and sign in automatically", isOn: $model.remembersPassword)
+            Text("Saves your password in macOS Keychain. When your session expires, signs in again with your email and password.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
+                .fixedSize(horizontal: false, vertical: true)
+        }
+        .disabled(model.isLoggingIn)
     }
 }
 

@@ -20,7 +20,6 @@ public enum DiagnosticReport {
             "Base URL: \(config.baseURL)",
             "Refresh Interval: \(Int(config.refreshIntervalSeconds))s",
             "Menu Bar Fill: \(config.menuBarUsageDisplay.rawValue)",
-            "Menu Bar Rows: \(config.menuBarQuotaRows.rawValue)",
             "Insight Alerts: \(config.insightAlertSettings.isEnabled ? "enabled" : "disabled")",
             "Insight Alert Level: \(config.insightAlertSettings.minimumSeverity.rawValue)",
             "Insight Alert Cooldown: \(Int(config.insightAlertSettings.cooldownMinutes))m",
@@ -31,6 +30,7 @@ public enum DiagnosticReport {
             "Selected Account: \(config.selectedAccount?.displayName ?? "none")",
             "Access Token: \(config.authToken.isEmpty ? "missing" : "present")",
             "Refresh Token: \(config.refreshToken.isEmpty ? "missing" : "present")",
+            "Password Auto-Login: \(config.selectedAccount?.automaticLoginEnabled == true ? "enabled" : "disabled")",
         ]
 
         if let stats = snapshot.stats {

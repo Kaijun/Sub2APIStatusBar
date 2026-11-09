@@ -97,22 +97,6 @@ public enum MenuBarUsageDisplay: String, Codable, CaseIterable, Identifiable, Se
     }
 }
 
-public enum MenuBarQuotaRows: String, Codable, CaseIterable, Identifiable, Sendable {
-    case two
-    case three
-
-    public var id: String { rawValue }
-
-    public var displayName: String {
-        switch self {
-        case .two:
-            "Daily + Weekly"
-        case .three:
-            "Daily + Weekly + Monthly"
-        }
-    }
-}
-
 public struct InsightThresholds: Codable, Equatable, Sendable {
     public var quotaWarningProgress: Double
     public var quotaCriticalProgress: Double
@@ -239,6 +223,7 @@ public struct StoredAccount: Codable, Identifiable, Equatable, Sendable {
     public var baseURL: String
     public var authToken: String
     public var refreshToken: String
+    public var automaticLoginEnabled: Bool
 
     public init(
         id: String = UUID().uuidString,
@@ -246,7 +231,8 @@ public struct StoredAccount: Codable, Identifiable, Equatable, Sendable {
         email: String = "",
         baseURL: String,
         authToken: String = "",
-        refreshToken: String = ""
+        refreshToken: String = "",
+        automaticLoginEnabled: Bool = false
     ) {
         self.id = id
         self.name = name
@@ -254,7 +240,25 @@ public struct StoredAccount: Codable, Identifiable, Equatable, Sendable {
         self.baseURL = baseURL
         self.authToken = authToken
         self.refreshToken = refreshToken
+        self.automaticLoginEnabled = automaticLoginEnabled
         normalize()
+    }
+
+    private enum CodingKeys: String, CodingKey {
+        case id, name, email, baseURL, authToken, refreshToken, automaticLoginEnabled
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.init(
+            id: try container.decode(String.self, forKey: .id),
+            name: try container.decodeIfPresent(String.self, forKey: .name) ?? "",
+            email: try container.decodeIfPresent(String.self, forKey: .email) ?? "",
+            baseURL: try container.decode(String.self, forKey: .baseURL),
+            authToken: try container.decodeIfPresent(String.self, forKey: .authToken) ?? "",
+            refreshToken: try container.decodeIfPresent(String.self, forKey: .refreshToken) ?? "",
+            automaticLoginEnabled: try container.decodeIfPresent(Bool.self, forKey: .automaticLoginEnabled) ?? false
+        )
     }
 
     public mutating func normalize() {
@@ -302,7 +306,6 @@ public struct AppConfig: Codable, Equatable, Sendable {
     public var showsMenuBarText: Bool
     public var menuBarMetric: MenuBarMetric
     public var menuBarUsageDisplay: MenuBarUsageDisplay
-    public var menuBarQuotaRows: MenuBarQuotaRows
     public var insightThresholds: InsightThresholds
     public var insightAlertSettings: InsightAlertSettings
     public var accounts: [StoredAccount]
@@ -318,7 +321,6 @@ public struct AppConfig: Codable, Equatable, Sendable {
         showsMenuBarText: Bool = false,
         menuBarMetric: MenuBarMetric = .automatic,
         menuBarUsageDisplay: MenuBarUsageDisplay = .remaining,
-        menuBarQuotaRows: MenuBarQuotaRows = .two,
         insightThresholds: InsightThresholds = .defaults,
         insightAlertSettings: InsightAlertSettings = .defaults,
         accounts: [StoredAccount] = [],
@@ -333,7 +335,6 @@ public struct AppConfig: Codable, Equatable, Sendable {
         self.showsMenuBarText = showsMenuBarText
         self.menuBarMetric = menuBarMetric
         self.menuBarUsageDisplay = menuBarUsageDisplay
-        self.menuBarQuotaRows = menuBarQuotaRows
         self.insightThresholds = insightThresholds
         self.insightAlertSettings = insightAlertSettings
         self.accounts = accounts
@@ -351,7 +352,6 @@ public struct AppConfig: Codable, Equatable, Sendable {
         case showsMenuBarText
         case menuBarMetric
         case menuBarUsageDisplay
-        case menuBarQuotaRows
         case insightThresholds
         case insightAlertSettings
         case accounts
@@ -369,7 +369,6 @@ public struct AppConfig: Codable, Equatable, Sendable {
         showsMenuBarText = try container.decodeIfPresent(Bool.self, forKey: .showsMenuBarText) ?? false
         menuBarMetric = try container.decodeIfPresent(MenuBarMetric.self, forKey: .menuBarMetric) ?? .automatic
         menuBarUsageDisplay = try container.decodeIfPresent(MenuBarUsageDisplay.self, forKey: .menuBarUsageDisplay) ?? .remaining
-        menuBarQuotaRows = try container.decodeIfPresent(MenuBarQuotaRows.self, forKey: .menuBarQuotaRows) ?? .two
         insightThresholds = try container.decodeIfPresent(InsightThresholds.self, forKey: .insightThresholds) ?? .defaults
         insightAlertSettings = try container.decodeIfPresent(InsightAlertSettings.self, forKey: .insightAlertSettings) ?? .defaults
         accounts = try container.decodeIfPresent([StoredAccount].self, forKey: .accounts) ?? []
@@ -388,7 +387,6 @@ public struct AppConfig: Codable, Equatable, Sendable {
         try container.encode(showsMenuBarText, forKey: .showsMenuBarText)
         try container.encode(menuBarMetric, forKey: .menuBarMetric)
         try container.encode(menuBarUsageDisplay, forKey: .menuBarUsageDisplay)
-        try container.encode(menuBarQuotaRows, forKey: .menuBarQuotaRows)
         try container.encode(insightThresholds, forKey: .insightThresholds)
         try container.encode(insightAlertSettings, forKey: .insightAlertSettings)
         try container.encode(accounts, forKey: .accounts)
@@ -406,8 +404,7 @@ public struct AppConfig: Codable, Equatable, Sendable {
             monitorMode: .user,
             showsMenuBarText: ["1", "true", "yes", "on"].contains((env["SUB2API_SHOW_MENU_BAR_TEXT"] ?? "").lowercased()),
             menuBarMetric: MenuBarMetric(rawValue: (env["SUB2API_MENU_BAR_METRIC"] ?? "").lowercased()) ?? .automatic,
-            menuBarUsageDisplay: MenuBarUsageDisplay(rawValue: (env["SUB2API_MENU_BAR_USAGE"] ?? "").lowercased()) ?? .remaining,
-            menuBarQuotaRows: MenuBarQuotaRows(rawValue: (env["SUB2API_MENU_BAR_ROWS"] ?? "").lowercased()) ?? .two
+            menuBarUsageDisplay: MenuBarUsageDisplay(rawValue: (env["SUB2API_MENU_BAR_USAGE"] ?? "").lowercased()) ?? .remaining
         )
     }
 
@@ -446,6 +443,18 @@ public struct AppConfig: Codable, Equatable, Sendable {
     public mutating func clearAuthTokens() {
         authToken = ""
         refreshToken = ""
+    }
+
+    public mutating func removeAccount(id: String) {
+        guard accounts.contains(where: { $0.id == id }) else { return }
+        accounts.removeAll { $0.id == id }
+        guard selectedAccountID == id else { return }
+        selectedAccountID = accounts.first?.id
+        if let account = accounts.first {
+            selectAccount(id: account.id, tokens: account.storedTokens)
+        } else {
+            clearAuthTokens()
+        }
     }
 
     public var selectedAccount: StoredAccount? {
@@ -487,7 +496,7 @@ public struct AppConfig: Codable, Equatable, Sendable {
                 return account.email.caseInsensitiveCompare(accountEmail) == .orderedSame
                     && account.baseURL == accountBaseURL
             }
-            return account.id == selectedAccountID || (account.email.isEmpty && account.baseURL == accountBaseURL)
+            return account.email.isEmpty && account.baseURL == accountBaseURL
         }
 
         let index: Int

@@ -13,11 +13,11 @@
 
 ![Sub2API Status Bar 产品预览](docs/assets/product-preview.png)
 
-Sub2API Status Bar 是一款使用原生 Swift 开发的轻量级 [Sub2API](https://github.com/Wei-Shaw/sub2api) 菜单栏工具。菜单栏图标可以快速反映额度压力；点开后即可查看每天、每周、每月额度，以及重置时间、请求数、Token、费用和订阅到期时间。
+Sub2API Status Bar 是一款使用原生 Swift 开发的轻量级 [Sub2API](https://github.com/Wei-Shaw/sub2api) 菜单栏工具。菜单栏图标可以快速反映额度压力；点开后即可查看每天、每周额度，以及重置时间、请求数、Token、费用和订阅到期时间。
 
 ## 为什么值得用？
 
-- **一眼看懂额度**：菜单栏不显示文字，只保留紧凑的两栏或三栏用量计。
+- **一眼看懂额度**：菜单栏不显示文字，固定用紧凑的两条用量计显示日额度和周额度。
 - **显示方式明确**：可以选择实心部分代表“剩余”或“已用”。
 - **信息够用但不臃肿**：请求、Token、费用、重置时间和到期时间集中在一个小菜单里。
 - **多账号快速切换**：直接点击第一行用户名即可切换已保存的 Sub2API 账号。
@@ -63,15 +63,19 @@ open dist/Sub2APIStatusBar.app
 
 ## 连接 Sub2API
 
-打开 **Settings**，填写：
+打开 **Settings → Add Account / Sign In**，填写服务器地址（例如 `https://sub2api.example.com`）、邮箱和密码，点击 **Login**。已保存账号会列在独立的 **Accounts** 区域，可通过 **Use** 切换、**Remove** 移除。移除只删除本机保存的 Token 和密码，不会删除服务端账号。账号操作和登录会立即保存。
 
-- **Base URL**，例如 `https://sub2api.example.com`
-- 当前 Sub2API 账号的 **Bearer Token**
-- 刷新间隔和菜单栏显示方式
+勾选 **Remember password and sign in automatically** 后，密码会保存到 macOS 钥匙串。登录态失效、接口返回 HTTP 401 时，应用会用保存的账密重新登录，无需 `refresh_token`；重启应用后也会继续使用这项设置。如果密码被拒绝，应用会暂停自动登录，需手动重新登录后恢复。可以通过 **Forget Saved Password** 删除保存的密码并关闭自动登录。
+
+也可以通过菜单 **Actions → Accounts → Add Account…** 打开登录页；没有账号时为 **Actions → Add Account…**。手动填写 **Bearer Token** 仍受支持；未启用账密自动登录时，有 `refresh_token` 才能自动续期。
+
+刷新间隔和菜单栏显示方式可在 Settings 中调整。
 
 应用会访问以下 `/api/v1` 接口：
 
 ```text
+POST /auth/login
+POST /auth/refresh
 GET /auth/me
 GET /subscriptions/summary
 GET /usage/dashboard/stats
@@ -87,7 +91,6 @@ GET /usage/dashboard/models
 SUB2API_BASE_URL=https://sub2api.example.com \
 SUB2API_AUTH_TOKEN=your-token \
 SUB2API_MENU_BAR_USAGE=remaining \
-SUB2API_MENU_BAR_ROWS=two \
 swift run Sub2APIStatusBar
 ```
 
@@ -96,9 +99,8 @@ swift run Sub2APIStatusBar
 | 设置 | 选项 |
 | --- | --- |
 | Menu Bar Fill | Remaining 或 Used |
-| Menu Bar Rows | Daily + Weekly 或 Daily + Weekly + Monthly |
-| Refresh | 5 至 300 秒 |
-| Accounts | 保存并切换多个 Sub2API 账号 |
+| Usage Data Refresh | 每 5 至 300 秒刷新额度、请求数、Token 和费用，与登录态续期分开 |
+| Accounts | 保存、切换和移除多个 Sub2API 账号 |
 | Alerts | 额度和用量提醒，可设置级别与静默时间 |
 | Startup | 登录 macOS 后自动启动 |
 
@@ -112,7 +114,7 @@ swift run Sub2APIStatusBar
 ~/Library/Application Support/Sub2APIStatusBar/config.json
 ```
 
-当前实现会把认证 Token 存在本地配置文件中，而不是 macOS Keychain。请像保护其他凭据一样保护该文件。
+认证 Token 仍保存在本地配置文件中，请像保护其他凭据一样保护该文件。启用自动登录时，账密保存在 macOS 钥匙串中，密码不会写入 `config.json`。
 
 ## 开发
 

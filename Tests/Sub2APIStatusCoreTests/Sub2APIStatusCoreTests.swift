@@ -84,8 +84,7 @@ private func pngSize(_ data: Data) -> (width: Int, height: Int)? {
         baseURL: "http://127.0.0.1:8080",
         showsMenuBarText: true,
         menuBarMetric: .quota,
-        menuBarUsageDisplay: .used,
-        menuBarQuotaRows: .three
+        menuBarUsageDisplay: .used
     )
 
     try store.save(config)
@@ -95,7 +94,35 @@ private func pngSize(_ data: Data) -> (width: Int, height: Int)? {
     #expect(loaded.showsMenuBarText == true)
     #expect(loaded.menuBarMetric == .quota)
     #expect(loaded.menuBarUsageDisplay == .used)
-    #expect(loaded.menuBarQuotaRows == .three)
+}
+
+@Test func appConfigIgnoresLegacyThreeRowPreferenceWithoutLosingAccountSettings() throws {
+    let data = Data("""
+    {
+      "baseURL": "https://sub2api.example.com",
+      "authToken": "saved-token",
+      "menuBarUsageDisplay": "used",
+      "menuBarQuotaRows": "three",
+      "selectedAccountID": "saved-account",
+      "accounts": [{
+        "id": "saved-account",
+        "email": "user@example.com",
+        "baseURL": "https://sub2api.example.com",
+        "authToken": "saved-token",
+        "automaticLoginEnabled": true
+      }]
+    }
+    """.utf8)
+
+    let config = try JSONDecoder().decode(AppConfig.self, from: data)
+    #expect(config.menuBarUsageDisplay == .used)
+    #expect(config.authToken == "saved-token")
+    #expect(config.selectedAccount?.id == "saved-account")
+    #expect(config.selectedAccount?.automaticLoginEnabled == true)
+
+    let encoded = try JSONEncoder().encode(config)
+    let saved = try #require(JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+    #expect(saved["menuBarQuotaRows"] == nil)
 }
 
 @Test func appConfigPersistsInsightThresholds() throws {
@@ -699,7 +726,7 @@ private func pngSize(_ data: Data) -> (width: Int, height: Int)? {
 
 @Test func subscriptionProgressFindsHighestUsageRatio() {
     let subscriptions = [
-        SubscriptionSummaryItem(id: 1, groupName: "Claude", status: "active", dailyProgress: 0.25, weeklyProgress: nil, monthlyProgress: 0.6, expiresAt: nil, daysRemaining: 12),
+        SubscriptionSummaryItem(id: 1, groupName: "Claude", status: "active", dailyProgress: 0.25, weeklyProgress: nil, monthlyProgress: 0.99, expiresAt: nil, daysRemaining: 12),
         SubscriptionSummaryItem(id: 2, groupName: "OpenAI", status: "active", dailyProgress: 0.82, weeklyProgress: 0.71, monthlyProgress: nil, expiresAt: nil, daysRemaining: 2),
     ]
 
@@ -1317,7 +1344,7 @@ private func pngSize(_ data: Data) -> (width: Int, height: Int)? {
     #expect(report.contains("Insight Alert Level: error"))
     #expect(report.contains("Insight Alert Cooldown: 90m"))
     #expect(report.contains("Menu Bar Fill: remaining"))
-    #expect(report.contains("Menu Bar Rows: two"))
+    #expect(report.contains("Menu Bar Rows:") == false)
     #expect(report.contains("Monthly Budget: $0.00"))
     #expect(report.contains("Spend Surge Threshold: 150%"))
     #expect(report.contains("Notification Permission: denied"))

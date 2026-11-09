@@ -33,7 +33,7 @@ Settings > Diagnostics > Copy Diagnostics is the preferred support artifact. It 
 
 ## Current Security Posture
 
-Sub2API Status Bar stores server URLs, account metadata, auth tokens, refresh tokens, display preferences, and refresh interval locally in Application Support. It does not use macOS Keychain in the current release line.
+Sub2API Status Bar stores server URLs, account metadata, auth tokens, refresh tokens, display preferences, and refresh interval locally in Application Support. When the user enables Remember password and sign in automatically, the saved login is stored in macOS Keychain, bound to the account and server. Passwords are not written to the configuration file. Forget Saved Password or removing the account deletes its Keychain entry.
 
 The app sends network requests only to:
 

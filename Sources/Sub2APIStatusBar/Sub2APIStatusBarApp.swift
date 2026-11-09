@@ -94,6 +94,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
             submenu.addItem(accountItem)
         }
         submenu.addItem(.separator())
+        submenu.addItem(menuItem("Manage Accounts...", symbol: "person.2", action: #selector(showSettings)))
         submenu.addItem(menuItem("Add Account...", symbol: "person.badge.plus", action: #selector(showConnection)))
         item.submenu = submenu
         return item
@@ -191,7 +192,6 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
     }
 
     @objc private func showConnection() {
-        model.settingsDraft = model.config
         if let connectionWindow {
             present(connectionWindow)
             return
@@ -256,8 +256,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuDelegate, NSWind
         button.image = MenuBarMeterImage.make(
             levels: MenuBarUsageLevels(snapshot: snapshot),
             connected: snapshot.connected,
-            display: model.config.menuBarUsageDisplay,
-            rows: model.config.menuBarQuotaRows
+            display: model.config.menuBarUsageDisplay
         )
         button.title = ""
 

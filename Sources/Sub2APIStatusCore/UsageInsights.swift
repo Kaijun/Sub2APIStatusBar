@@ -122,7 +122,6 @@ public struct UsageInsights: Equatable, Sendable {
             [
                 (groupName: item.groupName, label: "daily", progress: item.dailyProgress, resetInSeconds: item.dailyResetInSeconds),
                 (groupName: item.groupName, label: "weekly", progress: item.weeklyProgress, resetInSeconds: item.weeklyResetInSeconds),
-                (groupName: item.groupName, label: "monthly", progress: item.monthlyProgress, resetInSeconds: item.monthlyResetInSeconds),
             ]
         }
 

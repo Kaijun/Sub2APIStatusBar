@@ -789,7 +789,7 @@ public struct SubscriptionSummary: Decodable, Equatable, Sendable {
     }
 
     public var highestProgress: Double {
-        subscriptions.flatMap { [$0.dailyProgress, $0.weeklyProgress, $0.monthlyProgress] }
+        subscriptions.flatMap { [$0.dailyProgress, $0.weeklyProgress] }
             .compactMap(\.self)
             .max() ?? 0
     }
